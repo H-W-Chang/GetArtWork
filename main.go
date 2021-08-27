@@ -6,13 +6,21 @@ import (
 	"os"
 	"path/filepath"
 
-	"hwchang.idv.tw/pkg/met"
+	"github.com/H-W-Chang/GetArtWork/pkg/met"
 )
 
 func main() {
-	err := os.Mkdir("logs", os.ModeDir)
-	if err != nil {
-		log.Print(err)
+	if _, err := os.Stat("logs"); err != nil {
+		if os.IsNotExist(err) {
+			// not exist
+			err := os.Mkdir("logs", os.ModeDir)
+			if err != nil {
+				log.Print(err)
+			}
+		} else {
+			// other error
+			log.Print(err)
+		}
 	}
 	f, err := os.OpenFile(filepath.Join("logs", "GetArtWork.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
