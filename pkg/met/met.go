@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/dustin/go-humanize"
 )
 
 const searchAPI = "https://collectionapi.metmuseum.org/public/collection/v1/search"
@@ -54,7 +56,7 @@ func Search(artist, title, mediumType string, download bool, downloadPath string
 		wg.Add(1)
 		s := fmt.Sprintf("%d", int(id.(float64)))
 		go getObject(s, mediumType, downloadPath, download, &wg)
-		// break
+		break
 	}
 	wg.Wait()
 }
@@ -106,6 +108,30 @@ func getObjectInfo(url string) (objmap map[string]interface{}) {
 	}
 	return
 }
+
+// WriteCounter counts the number of bytes written to it. It implements to the io.Writer interface
+// and we can pass this into io.TeeReader() which will report progress on each write cycle.
+type WriteCounter struct {
+	Total uint64
+}
+
+func (wc *WriteCounter) Write(p []byte) (int, error) {
+	n := len(p)
+	wc.Total += uint64(n)
+	wc.PrintProgress()
+	return n, nil
+}
+
+func (wc WriteCounter) PrintProgress() {
+	// Clear the line by using a character return to go back to the start and remove
+	// the remaining characters by filling it with spaces
+	fmt.Printf("\r%s", strings.Repeat(" ", 35))
+
+	// Return again and print current status of download
+	// We use the humanize package to print the bytes in a meaningful way (e.g. 10 MB)
+	fmt.Printf("\rDownloading... %s complete", humanize.Bytes(wc.Total))
+}
+
 func downloadImage(filename, artist, imagePath, downloadPath string) {
 	err := os.MkdirAll(filepath.Join(downloadPath, artist), os.ModeDir)
 	if err != nil {
@@ -122,5 +148,11 @@ func downloadImage(filename, artist, imagePath, downloadPath string) {
 		return
 	}
 	defer resp.Body.Close()
-	io.Copy(out, resp.Body)
+
+	counter := &WriteCounter{}
+	// io.Copy(out, resp.Body)
+	if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
+		out.Close()
+		return
+	}
 }

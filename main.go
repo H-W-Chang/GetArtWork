@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,13 +23,14 @@ func main() {
 			log.Print(err)
 		}
 	}
-	f, err := os.OpenFile(filepath.Join("logs", "GetArtWork.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join("logs", "GetArtWork.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
-	defer f.Close()
+	defer logFile.Close()
+	mw := io.MultiWriter(os.Stdout, logFile)
 
-	log.SetOutput(f)
+	log.SetOutput(mw)
 	var artist, title string
 	sourcePtr := flag.String("s", "", "source of art work, support: MET")
 	artistPtr := flag.String("a", "", "artist")
